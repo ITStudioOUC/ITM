@@ -1,0 +1,173 @@
+ITM: 11
+Title: 爱特工作室程序部后端开发规范
+Author: Yuixiang Cai <caiyuxiang@itstudio.club>, Liu Yang <liuyang@itstudio.club>
+Created: 2021-12-17
+Status: draft
+
+
+简介
+====================
+
+爱特程序部主要工作是后端开发，基于 `Django` 框架: https://www.djangoproject.com/
+多数情况下和前端部门合作进行前后端分离的开发。
+
+目录
+====================
+
+0. 项目组织
+1. settings.py 
+2. models.py
+3. serializers.py
+4. views.py
+5. urlpatterns && Router
+
+正文
+====================
+
+0. 项目组织
+
+在大多数时候，项目可能包括不止一个 APP，将这些 APP 全部收录到一个 `apps` 文件夹中，并将该文件夹设置为 Python 的包。
+
+一个项目的目录树大体如下：
+```
+.
+├── apps
+│   ├── __init__.py
+│   └── <app_name>
+│       ├── __init__.py
+│       ├── admin.py
+│       ├── apps.py
+│       ├── migrations
+│       │   └── __init__.py
+│       ├── models.py
+│       ├── serializers.py
+│       ├── tests.py
+│       └── views.py
+├── <project_name>
+│   ├── __init__.py
+│   ├── asgi.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── .gitignore
+├── manage.py
+└── config.json
+```
+
+这样的好处在于：
+
+- 便于统一化管理，减少根目录下的文件数。
+
+1. settings.py
+
+`settings.py` 里的敏感配置信息如: `SECRET_KEY`，数据库的账号密码，STMP 等服务的账号密码，禁止明文写在文件中，请使用配置文件的方式读入并在 `.gitignore` 文件中忽略配置文件。
+
+示例代码：
+
+```
+import json
+
+# Configuration File
+with open('./conf.json', 'r') as f:
+    config = json.load(f)
+
+SECRET_KEY = config.get('SECRET_KEY')
+
+MYSQL_DATABASE_NAME = config.get('MYSQL_DATABASE_NAME')
+MYSQL_DATABASE_USER = config.get('MYSQL_DATABASE_USER')
+MYSQL_DATABASE_PASSWORD = config.get('MYSQL_DATABASE_PASSWORD')
+
+```
+
+这样的好处在于：
+
+- 避免上传到 GitHub 等平台时密码泄露。
+
+2. Model 层规范
+
+Model 类应该写在每个 app 下的 `models.py` 文件中，同时每个 Model 的每个字段应添加文字描述，例如：
+
+`content = models.TextField('内容')`
+
+对于常量使用 `ChoiceField` 类型，例如：
+
+```
+GENDER_CHOICES = (
+    (0, '女'),
+    (1, '男'),
+    (2, '隐藏')
+)
+class Person(models.Model):
+    gender = models.IntegerField('性别', choices=GENDER_CHOICES, default=2)
+```
+
+这样的好处在于：
+
+- 直观，只需要看 Model 类就可以理解数据库内的表。
+- 集中管理映射关系，外部显示的改变不会影响数据库内的字段。
+
+3. serializers.py
+
+Django RestFrameWork(drf) 中增加了序列化器，它可以代替表单快捷的完成校验和对数据库的操作。
+
+在校验中如果出现字段错误，抛出异常而不是返回 False。异常对应的状态信息参考 View 层对返回值设置的规范。
+
+4. views.py
+
+使用基于类的视图 `ViewSet` 或者 `APIView` 而不是函数。并在每个类中增加对整体模块逻辑的描述注释，在函数上增加函数功能的描述注释。
+
+注释参考示例：
+
+```
+class <ClassName>(APIView):
+    """
+    用户博客模块的逻辑
+    """
+
+    def post(self, request, *args, **kwargs):
+        """
+        :description: 对当前用户新增一篇博客
+        :author: ctwo
+        :date: 2021/12/17
+        :param request: 请求
+        :return: Response
+        """
+        pass
+```
+这样的好处在于：
+
+- 基于类的视图更符合面向对象和 Restful 规范，能更好的将接口归档。
+
+在和前端交互的过程中，以 Json 数据格式为主，后端的返回格式应该如下：
+
+```json
+{
+    "code": 200, // 状态码
+    "msg": "OK", // 必要的返回描述信息
+    "data": {}   // 数据
+}
+```
+
+同时，使用枚举类型绑定状态码和返回描述信息，如：
+
+```python
+class ResponseStatus(Enum):
+    OK = (20000, '成功')
+    UNEXPECTED_ERROR = (50000, '意外错误')
+    METHOD_NOT_ALLOWED_ERROR = (40000, '请求方法错误')
+```
+这样的好处在于：
+
+- 避免了重复的在视图函数中写返回信息的字符串，也便于规范接口文档
+
+4. urlpatterns 和 Router 规范
+
+使用 POST 方法或者带有参数的 GET 方法而不是将要查询的字段如 id 拼在 URL 中。
+
+不推荐的写法：`path("^blog/(?P<user_id>.*)$", <view_get_func>, name=<url_name>)`
+
+而采用 `path("blog/", <view_post_func>, name=<url_name>)`
+
+这样的好处在于：
+
+- 降低路由复杂性，少写复杂正则表达式，增强可读性
