@@ -2,6 +2,8 @@
 
 ITStudio Memos, ITM 爱特工作室备忘录
 
+[历年迎新网repo收录](https://github.com/ITStudioOUC/ITStudio-welcome-websites)
+
 ## Index
 
 [ITM-0001](./documents/ITM-0001.txt): 爱特工作室备忘录
